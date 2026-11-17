@@ -26,14 +26,13 @@ ventana de 24 h no se cobran · Claude ~$0,01–0,02 por mensaje · Whisper: cen
    `postgresql://postgres.xxxx:[PASSWORD]@aws-0-us-east-1.pooler.supabase.com:5432/postgres`
    > ⚠️ No uses la conexión "Direct" (`db.xxxx.supabase.co`): solo funciona por IPv6 y Railway/Render no la alcanzan.
 3. *Project Settings → Database → SSL Configuration* → **Download certificate** (`prod-ca-2021.crt`).
-4. En tu `backend/.env` local:
-   ```
-   DATABASE_URL=postgresql://postgres.xxxx:TU_PASSWORD@aws-0-us-east-1.pooler.supabase.com:5432/postgres
-   DATABASE_CA_CERT="-----BEGIN CERTIFICATE-----\nMIID...\n-----END CERTIFICATE-----"
-   ```
-   (El certificado en una sola línea con `\n` en lugar de saltos. En PowerShell:
-   `(Get-Content prod-ca-2021.crt) -join '\n'` te lo da listo para copiar.)
-5. Crea las tablas: `cd backend && npm run db:migrate` → debe decir `✅ Esquema aplicado (16 categorías del sistema)`.
+4. Guarda el certificado en tu `.env` (lo crea si no existe) y obtén la versión de una línea para Railway:
+   `cd backend && npm run db:cert -- "C:\Users\TU-USUARIO\Downloads\prod-ca-2021.crt"`
+5. En `backend/.env` pon `DATABASE_URL=` con la URL del paso 2 (reemplaza `[YOUR-PASSWORD]`; si la contraseña
+   tiene `@ # / ? %` o espacios, cámbiala por una solo de letras y números).
+6. Crea las tablas: `npm run db:migrate` → debe decir `✅ Esquema aplicado (16 categorías del sistema)`.
+   *Alternativa sin terminal:* Supabase → **SQL Editor** → pega todo `backend/db/schema.sql` → **Run**.
+7. Verifica en **Table Editor** que aparecen las 8 tablas, y en **Advisors → Security** que no hay alertas de RLS.
 
 ## Paso 3 · Llaves de IA y voz
 - **Claude:** console.anthropic.com → *API Keys* → crea una → `ANTHROPIC_API_KEY`. Pon un límite de gasto mensual en *Billing → Limits*.

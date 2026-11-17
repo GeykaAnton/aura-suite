@@ -12,6 +12,7 @@
     "start": "node --env-file-if-exists=.env src/server.js",
     "test": "node --test",
     "db:migrate": "node --env-file-if-exists=.env scripts/migrate.js",
+    "db:cert": "node scripts/cert-to-env.js",
     "smoke": "node --env-file-if-exists=.env scripts/smoke.js"
   },
   "dependencies": {

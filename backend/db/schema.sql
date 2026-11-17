@@ -188,8 +188,23 @@ CREATE TABLE IF NOT EXISTS savings_goals (
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ── Seguridad (Supabase) ────────────────────────────────────────────────
+-- Supabase publica automáticamente las tablas de "public" en su API REST.
+-- Activar RLS SIN políticas = nadie puede leerlas por esa API (anon/authenticated).
+-- El backend se conecta como "postgres", que no está sujeto a RLS, así que sigue funcionando.
+-- En Fase 2 se agregan políticas tipo "cada usuaria ve solo lo suyo".
+ALTER TABLE users            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE exchange_rates   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categories       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE inbound_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE price_quotes     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE savings_goals    ENABLE ROW LEVEL SECURITY;
+
 -- ── Vista: resumen diario en USD (base para la web y el bot) ────────────
-CREATE OR REPLACE VIEW v_daily_summary AS
+-- security_invoker: la vista respeta el RLS de quien consulta (si no, lo saltaría)
+CREATE OR REPLACE VIEW v_daily_summary WITH (security_invoker = true) AS
 SELECT
   user_id,
   (occurred_at AT TIME ZONE 'America/Caracas')::date AS day,
