@@ -1,0 +1,24 @@
+{
+  "name": "aura-suite-backend",
+  "version": "0.1.0",
+  "description": "Aura Suite – Fase 1 (El Núcleo): webhook de WhatsApp, IA financiera y tasa BCV",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --watch src/server.js",
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "test": "node --test",
+    "db:migrate": "node --env-file-if-exists=.env scripts/migrate.js",
+    "smoke": "node --env-file-if-exists=.env scripts/smoke.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.9.0",
+    "decimal.js": "^10.4.3",
+    "fastify": "^5.2.0",
+    "pg": "^8.13.0",
+    "zod": "^3.24.0"
+  }
+}

@@ -1,0 +1,56 @@
+# Blueprint de Render (alternativa a Railway). Render → New → Blueprint → elige este repo.
+# Usa el plan "starter" (pagado): el plan gratis "duerme" tras 15 min sin tráfico y el
+# primer mensaje de WhatsApp tardaría ~1 minuto en responder.
+services:
+  - type: web
+    name: aura-suite-backend
+    runtime: node
+    rootDir: backend
+    plan: starter
+    region: virginia            # la más cercana a Venezuela; usa la misma región en Supabase (us-east-1)
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: TIMEZONE
+        value: America/Caracas
+      - key: LLM_MODE
+        value: claude
+      - key: LLM_MODEL
+        value: claude-opus-5-5
+      - key: LLM_EFFORT
+        value: low
+      - key: TRANSCRIPTION_MODE
+        value: whisper
+      - key: BCV_PROVIDER
+        value: dolarapi
+      - key: GRAPH_API_VERSION
+        value: v23.0
+      - key: ENABLE_DEV_ROUTES
+        value: "false"
+      # Secretos: Render te los pedirá al crear el Blueprint (sync: false = no se guardan en git)
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_CA_CERT
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: WHISPER_API_URL
+        sync: false
+      - key: WHISPER_API_KEY
+        sync: false
+      - key: WHISPER_MODEL
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
