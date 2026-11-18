@@ -32,7 +32,9 @@ export const config = {
   },
 
   transcription: {
-    mode: env.TRANSCRIPTION_MODE ?? 'mock', // 'whisper' | 'mock'
+    mode: env.TRANSCRIPTION_MODE ?? 'mock', // 'whisper' | 'gemini' | 'mock'
+    geminiApiKey: env.GEMINI_API_KEY || env.LLM_API_KEY || '',
+    geminiModels: (env.TRANSCRIPTION_GEMINI_MODELS ?? 'gemini-3.1-flash-lite,gemini-3.5-flash,gemini-3.8-flash').split(/[,\s]+/).filter(Boolean),
     url: env.WHISPER_API_URL ?? 'https://api.openai.com/v1/audio/transcriptions',
     apiKey: env.WHISPER_API_KEY ?? '',
     model: env.WHISPER_MODEL ?? 'whisper-1',
