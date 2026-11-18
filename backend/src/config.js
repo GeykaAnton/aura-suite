@@ -23,8 +23,10 @@ export const config = {
   },
 
   llm: {
-    mode: env.LLM_MODE ?? 'mock', // 'claude' | 'mock'
-    model: env.LLM_MODEL ?? 'claude-opus-5-5',
+    mode: env.LLM_MODE ?? 'mock', // 'openai' (cualquier API compatible) | 'claude' | 'mock'
+    model: env.LLM_MODEL ?? (env.LLM_MODE === 'openai' ? 'gpt-4o-mini' : 'claude-opus-5-5'),
+    url: env.LLM_API_URL ?? 'https://api.openai.com/v1/chat/completions',
+    apiKey: env.LLM_API_KEY || env.WHISPER_API_KEY || '', // por defecto reutiliza la llave de OpenAI
     effort: env.LLM_EFFORT ?? 'low',
   },
 
@@ -62,6 +64,8 @@ export function configWarnings() {
   const w = [];
   if (config.llm.mode === 'claude' && !env.ANTHROPIC_API_KEY && !env.ANTHROPIC_AUTH_TOKEN)
     w.push('LLM_MODE=claude pero no hay ANTHROPIC_API_KEY (se intentará usar un perfil de `ant auth login`).');
+  if (config.llm.mode === 'openai' && !config.llm.apiKey)
+    w.push('LLM_MODE=openai pero falta LLM_API_KEY (o WHISPER_API_KEY).');
   if (config.transcription.mode === 'whisper' && !config.transcription.apiKey)
     w.push('TRANSCRIPTION_MODE=whisper pero falta WHISPER_API_KEY.');
   if (!config.whatsapp.appSecret)

@@ -9,6 +9,7 @@
 // ═══════════════════════════════════════════════════════════════════════
 import { config } from '../config.js';
 import { parseWithClaude, AiUnavailableError } from '../ai/claudeParser.js';
+import { parseWithOpenAI } from '../ai/openaiParser.js';
 import { parseWithRules } from '../ai/mockParser.js';
 import { getTodayBcvRate } from './bcvRate.js';
 import { buildRateTable, calcShieldedPrice, withEquivalents, D } from './money.js';
@@ -16,7 +17,10 @@ import { transcribeAudio } from './transcription.js';
 import { todayInTz, periodStart } from '../utils/dates.js';
 import * as fmt from './replyFormatter.js';
 
-const parseMessage = (text, ctx) => (config.llm.mode === 'claude' ? parseWithClaude(text, ctx) : parseWithRules(text, ctx));
+const parseMessage = (text, ctx) =>
+  config.llm.mode === 'openai' ? parseWithOpenAI(text, ctx)
+    : config.llm.mode === 'claude' ? parseWithClaude(text, ctx)
+      : parseWithRules(text, ctx);
 
 /**
  * @param {object} deps
