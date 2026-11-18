@@ -26,6 +26,7 @@ export const config = {
     mode: env.LLM_MODE ?? 'mock', // 'openai' (cualquier API compatible) | 'claude' | 'mock'
     model: env.LLM_MODEL ?? (env.LLM_MODE === 'openai' ? 'gpt-4o-mini' : 'claude-opus-5-5'),
     url: env.LLM_API_URL ?? 'https://api.openai.com/v1/chat/completions',
+    fallbackModels: (env.LLM_FALLBACK_MODELS ?? '').split(/[,\s]+/).map((s) => s.trim()).filter(Boolean),
     apiKey: env.LLM_API_KEY || env.WHISPER_API_KEY || '', // por defecto reutiliza la llave de OpenAI
     effort: env.LLM_EFFORT ?? 'low',
   },
