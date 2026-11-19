@@ -5,9 +5,12 @@ import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContai
 import { api } from '@/lib/api';
 import { CATEGORY_LABELS, label, usd, ves } from '@/lib/format';
 import { ErrorBox, Loading, PageTitle, Stat, useData } from '@/components/ui';
+import HealthTrafficLight from '@/components/HealthTrafficLight';
+import WhatsappShareCard from '@/components/WhatsappShareCard';
 import TxTable from '@/components/TxTable';
 
 const PERIODS = [['hoy', 'Hoy'], ['semana', 'Semana'], ['mes', 'Mes']];
+const PERIOD_NAME = { hoy: 'de hoy', semana: 'de esta semana', mes: 'de este mes' };
 
 export default function Dashboard() {
   const [period, setPeriod] = useState('mes');
@@ -20,25 +23,46 @@ export default function Dashboard() {
   if (me.error) return <ErrorBox message={me.error} onRetry={me.reload} />;
 
   const s = summary.data?.summary;
+  const health = summary.data?.health;
   const rate = summary.data?.rate;
   const categories = s
     ? Object.entries(s.expense_by_category).map(([k, v]) => ({ name: label(CATEGORY_LABELS, k), value: v })).sort((a, b) => b.value - a.value).slice(0, 8)
     : [];
   const name = me.data?.business_name || me.data?.display_name;
 
+  const waSummary = s
+    ? [
+        `🌸 *Resumen ${PERIOD_NAME[period]}*${name ? ` · ${name}` : ''}`,
+        `🟢 Lo que entró: *${usd(s.ingresos_usd)}*`,
+        `🔴 Lo que salió: *${usd(s.egresos_usd)}*`,
+        `✨ Te queda libre: *${usd(s.neto_usd)}*`,
+        s.pendiente_por_cobrar_usd > 0 ? `⏳ Fiado por cobrar: *${usd(s.pendiente_por_cobrar_usd)}*` : null,
+        rate ? `💱 Tasa BCV: ${ves(rate.rate)}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n')
+    : '';
+
   return (
     <>
-      <PageTitle title={name ? `Hola, ${name} 👋` : 'Resumen'} subtitle="Tu negocio de un vistazo, en dólares y bolívares.">
-        <div className="flex rounded-lg border border-gray-300 bg-white p-0.5">
-          {PERIODS.map(([key, text]) => (
-            <button
-              key={key}
-              onClick={() => setPeriod(key)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium ${period === key ? 'bg-aura-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-            >
-              {text}
-            </button>
-          ))}
+      <PageTitle title={name ? `Hola, ${name} 👋` : 'Tu negocio hoy'} subtitle="Tus números claros, sin enredos contables.">
+        <div className="flex flex-wrap items-center gap-2">
+          {rate && (
+            <span className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700">
+              BCV: <b>{ves(rate.rate)}</b>
+            </span>
+          )}
+          <div className="flex rounded-xl border border-stone-300 bg-white p-0.5">
+            {PERIODS.map(([key, text]) => (
+              <button
+                key={key}
+                onClick={() => setPeriod(key)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium ${period === key ? 'bg-aura-600 text-white' : 'text-gray-600 hover:bg-stone-100'}`}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
         </div>
       </PageTitle>
 
@@ -46,22 +70,19 @@ export default function Dashboard() {
       {summary.loading && !s && <Loading />}
 
       {s && (
-        <>
+        <div className="space-y-4">
+          <HealthTrafficLight health={health} />
+
           <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Stat title="Ingresos" value={usd(s.ingresos_usd)} tone="good" hint={rate && ves(s.ingresos_usd * rate.rate)} />
-            <Stat title="Gastos" value={usd(s.egresos_usd)} tone="bad" hint={rate && ves(s.egresos_usd * rate.rate)} />
-            <Stat title="Ganancia neta" value={usd(s.neto_usd)} tone={s.neto_usd >= 0 ? 'good' : 'bad'} hint={`${s.count} movimientos`} />
-            <Stat title="Por cobrar (fiado)" value={usd(s.pendiente_por_cobrar_usd)} hint="Aún no es dinero en caja" />
+            <Stat title="Lo que entró" value={usd(s.ingresos_usd)} tone="good" hint={rate && ves(s.ingresos_usd * rate.rate)} />
+            <Stat title="Lo que salió" value={usd(s.egresos_usd)} tone="bad" hint={rate && ves(s.egresos_usd * rate.rate)} />
+            <Stat title="Te queda libre" value={usd(s.neto_usd)} tone={s.neto_usd >= 0 ? 'good' : 'bad'} hint={`${s.count} movimientos`} />
+            <Stat title="Fiado por cobrar" value={usd(s.pendiente_por_cobrar_usd)} hint="Aún no es dinero en caja" />
           </section>
-          {rate && (
-            <p className="mt-2 text-xs text-gray-500">
-              Tasa BCV: <b>{ves(rate.rate)}</b> por $1 ({rate.effective_date}){rate.stale ? ' · tasa desactualizada' : ''}. Los montos en Bs son equivalentes a la tasa de hoy.
-            </p>
-          )}
-        </>
+        </div>
       )}
 
-      <section className="mt-6 grid gap-4 lg:grid-cols-2">
+      <section className="mt-5 grid gap-4 lg:grid-cols-2">
         <div className="card">
           <h2 className="mb-3 font-semibold text-gray-800">Últimos 30 días (USD)</h2>
           {series.loading ? <Loading /> : series.error ? <ErrorBox message={series.error} onRetry={series.reload} /> : (
@@ -73,8 +94,8 @@ export default function Dashboard() {
                   <YAxis fontSize={11} width={48} />
                   <Tooltip formatter={(v) => usd(v)} labelFormatter={(d) => d} />
                   <Legend />
-                  <Line type="monotone" dataKey="ingresos_usd" name="Ingresos" stroke="#10b981" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="egresos_usd" name="Gastos" stroke="#f43f5e" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="ingresos_usd" name="Entró" stroke="#10b981" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="egresos_usd" name="Salió" stroke="#f43f5e" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -82,7 +103,7 @@ export default function Dashboard() {
         </div>
 
         <div className="card">
-          <h2 className="mb-3 font-semibold text-gray-800">En qué gastas</h2>
+          <h2 className="mb-3 font-semibold text-gray-800">En qué se fue el dinero</h2>
           {summary.loading && !s ? <Loading /> : categories.length === 0 ? (
             <p className="py-10 text-center text-sm text-gray-500">Aún no hay gastos en este período.</p>
           ) : (
@@ -93,7 +114,7 @@ export default function Dashboard() {
                   <XAxis type="number" fontSize={11} />
                   <YAxis type="category" dataKey="name" fontSize={11} width={110} />
                   <Tooltip formatter={(v) => usd(v)} />
-                  <Bar dataKey="value" name="Gasto" fill="#ec4899" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="value" name="Gasto" fill="#ec4899" radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -101,10 +122,20 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {s && (
+        <section className="mt-4">
+          <WhatsappShareCard
+            title="Resumen rápido para WhatsApp"
+            subtitle="Compártelo con tu socia o guárdalo en tu chat."
+            text={waSummary}
+          />
+        </section>
+      )}
+
       <section className="card mt-4">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-800">Últimas transacciones</h2>
-          <Link href="/transacciones" className="text-sm font-medium text-aura-600 hover:underline">Ver todas</Link>
+          <h2 className="font-semibold text-gray-800">Últimos movimientos</h2>
+          <Link href="/transacciones" className="text-sm font-medium text-aura-600 hover:underline">Ver todos</Link>
         </div>
         {recent.loading ? <Loading /> : recent.error ? <ErrorBox message={recent.error} onRetry={recent.reload} /> : <TxTable rows={recent.data.rows} />}
       </section>

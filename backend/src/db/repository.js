@@ -82,6 +82,7 @@ export class MemoryRepository {
 
   // ── Web app ──
   products = [];
+  goals = [];
 
   async getPrimaryUser(phone = null) {
     const all = [...this.users.values()].filter((u) => !phone || u.whatsapp_phone === phone);
@@ -143,6 +144,30 @@ export class MemoryRepository {
     const p = this.products.find((x) => x.id === id && x.user_id === userId && x.active);
     if (!p) return false;
     p.active = false;
+    return true;
+  }
+
+  async listGoals(userId) {
+    return this.goals.filter((g) => g.user_id === userId).sort((a, b) => a.created_at.localeCompare(b.created_at));
+  }
+
+  async createGoal(userId, g) {
+    const row = { id: randomUUID(), user_id: userId, created_at: new Date().toISOString(), ...g };
+    this.goals.push(row);
+    return row;
+  }
+
+  async updateGoal(userId, id, patch) {
+    const g = this.goals.find((x) => x.id === id && x.user_id === userId);
+    if (!g) return null;
+    Object.assign(g, patch);
+    return g;
+  }
+
+  async deleteGoal(userId, id) {
+    const idx = this.goals.findIndex((x) => x.id === id && x.user_id === userId);
+    if (idx === -1) return false;
+    this.goals.splice(idx, 1);
     return true;
   }
 }
@@ -386,6 +411,43 @@ export class PgRepository {
       'UPDATE products SET active = false, updated_at = now() WHERE id = $1 AND user_id = $2 AND active',
       [id, userId],
     );
+    return rowCount > 0;
+  }
+
+  static GOAL_COLS = `id, name, target_amount::float, currency, saved_amount::float,
+                      to_char(target_date, 'YYYY-MM-DD') AS target_date, created_at`;
+
+  async listGoals(userId) {
+    const { rows } = await this.pool.query(
+      `SELECT ${PgRepository.GOAL_COLS} FROM savings_goals WHERE user_id = $1 ORDER BY created_at`,
+      [userId],
+    );
+    return rows;
+  }
+
+  async createGoal(userId, g) {
+    const { rows } = await this.pool.query(
+      `INSERT INTO savings_goals (user_id, name, target_amount, currency, saved_amount, target_date)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING ${PgRepository.GOAL_COLS}`,
+      [userId, g.name, g.target_amount, g.currency, g.saved_amount ?? 0, g.target_date ?? null],
+    );
+    return rows[0];
+  }
+
+  async updateGoal(userId, id, patch) {
+    const allowed = ['name', 'target_amount', 'currency', 'saved_amount', 'target_date'];
+    const keys = Object.keys(patch).filter((k) => allowed.includes(k));
+    if (!keys.length) return (await this.listGoals(userId)).find((g) => g.id === id) ?? null;
+    const sets = keys.map((k, i) => `${k} = $${i + 3}`);
+    const { rows } = await this.pool.query(
+      `UPDATE savings_goals SET ${sets.join(', ')} WHERE id = $1 AND user_id = $2 RETURNING ${PgRepository.GOAL_COLS}`,
+      [id, userId, ...keys.map((k) => patch[k])],
+    );
+    return rows[0] ?? null;
+  }
+
+  async deleteGoal(userId, id) {
+    const { rowCount } = await this.pool.query('DELETE FROM savings_goals WHERE id = $1 AND user_id = $2', [id, userId]);
     return rowCount > 0;
   }
 }

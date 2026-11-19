@@ -6,6 +6,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { getTodayBcvRate } from '../services/bcvRate.js';
+import { calcHealthScore } from '../services/healthScore.js';
 import { CURRENCIES, CATEGORIES, PAYMENT_METHODS } from '../ai/schema.js';
 import { periodStart, todayInTz } from '../utils/dates.js';
 
@@ -35,6 +36,14 @@ const ProductBody = z.object({
   margin_pct: z.number().min(0).max(95).nullable().optional(),
   stock_qty: z.number().min(0).default(0),
   min_stock_qty: z.number().min(0).default(0),
+});
+
+const GoalBody = z.object({
+  name: z.string().trim().min(1).max(120),
+  target_amount: z.number().positive(),
+  currency: z.enum(CURRENCIES).default('USD'),
+  saved_amount: z.number().min(0).default(0),
+  target_date: dateStr.nullable().optional(),
 });
 
 /** @param {import('fastify').FastifyInstance} app */
@@ -69,8 +78,18 @@ export default async function appRoutes(app, { repo }) {
     const p = z.enum(['hoy', 'semana', 'mes']).default('hoy').safeParse(req.query.period);
     if (!p.success) return reply.code(400).send({ error: 'period inválido' });
     const since = periodStart(p.data);
-    const [summary, rate] = await Promise.all([repo.summarize(req.dashUser.id, since), getTodayBcvRate(repo)]);
-    return { period: p.data, since, summary, rate: { rate: rate.rate, effective_date: rate.effectiveDate, stale: rate.stale } };
+    const [summary, rate, products] = await Promise.all([
+      repo.summarize(req.dashUser.id, since),
+      getTodayBcvRate(repo),
+      repo.listProducts(req.dashUser.id),
+    ]);
+    return {
+      period: p.data,
+      since,
+      summary,
+      health: calcHealthScore(summary, products),
+      rate: { rate: rate.rate, effective_date: rate.effectiveDate, stale: rate.stale },
+    };
   });
 
   app.get('/api/app/series', async (req) => {
@@ -125,6 +144,28 @@ export default async function appRoutes(app, { repo }) {
     if (!z.string().uuid().safeParse(req.params.id).success) return reply.code(400).send({ error: 'id inválido' });
     const ok = await repo.deleteProduct(req.dashUser.id, req.params.id);
     return ok ? reply.code(204).send() : reply.code(404).send({ error: 'No encontrado' });
+  });
+
+  app.get('/api/app/goals', async (req) => repo.listGoals(req.dashUser.id));
+
+  app.post('/api/app/goals', async (req, reply) => {
+    const b = GoalBody.safeParse(req.body);
+    if (!b.success) return reply.code(400).send({ error: b.error.flatten() });
+    return reply.code(201).send(await repo.createGoal(req.dashUser.id, b.data));
+  });
+
+  app.patch('/api/app/goals/:id', async (req, reply) => {
+    if (!z.string().uuid().safeParse(req.params.id).success) return reply.code(400).send({ error: 'id inválido' });
+    const b = GoalBody.partial().safeParse(req.body);
+    if (!b.success) return reply.code(400).send({ error: b.error.flatten() });
+    const row = await repo.updateGoal(req.dashUser.id, req.params.id, b.data);
+    return row ? row : reply.code(404).send({ error: 'No encontrada' });
+  });
+
+  app.delete('/api/app/goals/:id', async (req, reply) => {
+    if (!z.string().uuid().safeParse(req.params.id).success) return reply.code(400).send({ error: 'id inválido' });
+    const ok = await repo.deleteGoal(req.dashUser.id, req.params.id);
+    return ok ? reply.code(204).send() : reply.code(404).send({ error: 'No encontrada' });
   });
 
   // Catálogos para los filtros del frontend

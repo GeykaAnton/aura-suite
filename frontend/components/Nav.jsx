@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const LINKS = [
-  { href: '/', label: 'Resumen', short: 'Resumen', icon: '📊' },
-  { href: '/transacciones', label: 'Transacciones', short: 'Movim.', icon: '💸' },
-  { href: '/precios', label: 'Precios', short: 'Precios', icon: '🏷️' },
-  { href: '/inventario', label: 'Inventario', short: 'Stock', icon: '📦' },
-  { href: '/reportes', label: 'Reportes', short: 'Reportes', icon: '📄' },
+  { href: '/', label: 'Resumen', short: 'Inicio', icon: '📊', bottom: true },
+  { href: '/transacciones', label: 'Transacciones', short: 'Movim.', icon: '💸', bottom: true },
+  { href: '/precios', label: 'Precios', short: 'Precios', icon: '🏷️', bottom: true },
+  { href: '/metas', label: 'Metas', short: 'Metas', icon: '🎯', bottom: true },
+  { href: '/inventario', label: 'Inventario', short: 'Stock', icon: '📦', bottom: true },
+  { href: '/reportes', label: 'Reportes', short: 'Reportes', icon: '📄', bottom: false },
 ];
 
 export default function Nav() {
@@ -80,7 +81,7 @@ export default function Nav() {
         aria-label="Navegación principal"
         className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-gray-200 bg-white/95 backdrop-blur md:hidden"
       >
-        {LINKS.map((item) => {
+        {LINKS.filter((item) => item.bottom).map((item) => {
           const active = isActive(item.href);
           return (
             <Link

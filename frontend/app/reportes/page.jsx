@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import { CATEGORY_LABELS, addDays, firstOfMonth, label, todayCaracas, usd } from '@/lib/format';
 import { exportExcel, exportPdf } from '@/lib/export';
 import { ErrorBox, Loading, PageTitle, Stat, useData } from '@/components/ui';
+import WhatsappShareCard from '@/components/WhatsappShareCard';
 import TxTable from '@/components/TxTable';
 
 const MAX = 1000;
@@ -112,6 +113,21 @@ export default function Reportes() {
           )}
 
           <div className="card mt-4"><TxTable rows={rows} /></div>
+
+          {valid.length > 0 && (
+            <div className="mt-4">
+              <WhatsappShareCard
+                title="Resumen del período para WhatsApp"
+                text={[
+                  `📊 *Reporte Aura Suite* (${range.from} a ${range.to})`,
+                  `🟢 Lo que entró: *${usd(summary.ingresos)}*`,
+                  `🔴 Lo que salió: *${usd(summary.egresos)}*`,
+                  `✨ Ganancia libre: *${usd(summary.neto)}*`,
+                  summary.porCobrar > 0 ? `⏳ Fiado por cobrar: *${usd(summary.porCobrar)}*` : null,
+                ].filter(Boolean).join('\n')}
+              />
+            </div>
+          )}
         </>
       )}
     </>

@@ -10,19 +10,19 @@
 }
 
 body {
-  background: #faf7f9;
+  background: #faf7f5;
   color: #1f2937;
 }
 
 .input {
-  @apply w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-100;
+  @apply w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-100;
 }
 .btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-aura-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-aura-700 disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-aura-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-aura-700 disabled:cursor-not-allowed disabled:opacity-50;
 }
 .btn-ghost {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-stone-50 disabled:opacity-50;
 }
 .card {
-  @apply rounded-2xl border border-gray-200 bg-white p-5 shadow-sm;
+  @apply rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs;
 }
