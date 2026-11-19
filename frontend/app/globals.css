@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --color-aura-50: #fdf2f8;
+  --color-aura-100: #fce7f3;
+  --color-aura-500: #ec4899;
+  --color-aura-600: #db2777;
+  --color-aura-700: #be185d;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  background: #faf7f9;
+  color: #1f2937;
+}
+
+.input {
+  @apply w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-aura-500 focus:ring-2 focus:ring-aura-100;
+}
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-aura-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-aura-700 disabled:cursor-not-allowed disabled:opacity-50;
+}
+.btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50;
+}
+.card {
+  @apply rounded-2xl border border-gray-200 bg-white p-5 shadow-sm;
+}

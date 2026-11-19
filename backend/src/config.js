@@ -47,6 +47,12 @@ export const config = {
   },
 
   databaseUrl: env.DATABASE_URL || null,
+
+  // Panel web (modo una sola usuaria). Sin DASHBOARD_TOKEN las rutas /api/app/* quedan desactivadas.
+  dashboard: {
+    token: env.DASHBOARD_TOKEN || null,
+    userPhone: env.DASHBOARD_USER_PHONE || null, // si no se define, se usa la usuaria con actividad más reciente
+  },
   // Certificado CA de Supabase (contenido PEM). Supabase → Database → SSL Configuration → Download certificate
   databaseCaCert: env.DATABASE_CA_CERT ? env.DATABASE_CA_CERT.replace(/\\n/g, '\n') : null,
 };

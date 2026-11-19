@@ -22,6 +22,12 @@ export default async function whatsappWebhook(app, { repo }) {
     }
 
     const messages = extractMessages(req.body);
+    const changes = (req.body?.entry ?? []).flatMap((e) => e.changes ?? []);
+    req.log.info({
+      fields: changes.map((c) => c.field),
+      incoming: messages.map((m) => m.type),
+      statuses: changes.flatMap((c) => (c.value?.statuses ?? []).map((s) => s.status)),
+    }, 'Webhook de WhatsApp recibido');
 
     // Meta exige 200 rápido (si tarda, reintenta y duplica). Respondemos ya
     // y procesamos en segundo plano. En Fase 2, cambiar por una cola

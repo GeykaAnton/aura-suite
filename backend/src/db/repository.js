@@ -71,7 +71,7 @@ export class MemoryRepository {
 
   async summarize(userId, since) {
     const rows = this.transactions.filter(
-      (t) => t.user_id === userId && new Date(t.occurred_at) >= since && t.status !== 'anulada',
+      (t) => t.user_id === userId && !t.deleted_at && new Date(t.occurred_at) >= since && t.status !== 'anulada',
     );
     return aggregate(rows);
   }
@@ -79,10 +79,76 @@ export class MemoryRepository {
   async savePriceQuote(q) {
     this.quotes.push({ id: randomUUID(), ...q });
   }
+
+  // ── Web app ──
+  products = [];
+
+  async getPrimaryUser(phone = null) {
+    const all = [...this.users.values()].filter((u) => !phone || u.whatsapp_phone === phone);
+    return all[0] ?? null;
+  }
+
+  async listTransactions(userId, f = {}) {
+    let rows = this.transactions.filter((t) => t.user_id === userId && !t.deleted_at);
+    if (f.from) rows = rows.filter((t) => new Date(t.occurred_at) >= f.from);
+    if (f.to) rows = rows.filter((t) => new Date(t.occurred_at) < f.to);
+    if (f.type) rows = rows.filter((t) => t.type === f.type);
+    if (f.status) rows = rows.filter((t) => t.status === f.status);
+    if (f.category) rows = rows.filter((t) => t.category_slug === f.category);
+    if (f.q) rows = rows.filter((t) => `${t.description ?? ''} ${t.counterparty ?? ''}`.toLowerCase().includes(f.q.toLowerCase()));
+    rows.sort((a, b) => new Date(b.occurred_at) - new Date(a.occurred_at));
+    const limit = f.limit ?? 50;
+    const offset = f.offset ?? 0;
+    return { total: rows.length, rows: rows.slice(offset, offset + limit) };
+  }
+
+  async softDeleteTransaction(userId, id) {
+    const t = this.transactions.find((x) => x.id === id && x.user_id === userId && !x.deleted_at);
+    if (!t) return false;
+    t.deleted_at = new Date().toISOString();
+    return true;
+  }
+
+  async dailySeries(userId, since) {
+    const by = new Map();
+    for (const t of this.transactions) {
+      if (t.user_id !== userId || t.deleted_at || t.status !== 'confirmada' || new Date(t.occurred_at) < since) continue;
+      const day = new Date(new Date(t.occurred_at).getTime() - 4 * 3600e3).toISOString().slice(0, 10);
+      const d = by.get(day) ?? { day, ingresos_usd: 0, egresos_usd: 0 };
+      d[t.type === 'ingreso' ? 'ingresos_usd' : 'egresos_usd'] += Number(t.amount_usd);
+      by.set(day, d);
+    }
+    return [...by.values()].sort((a, b) => a.day.localeCompare(b.day));
+  }
+
+  async listProducts(userId) {
+    return this.products.filter((p) => p.user_id === userId && p.active).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async createProduct(userId, p) {
+    if (this.products.some((x) => x.user_id === userId && x.active && x.name === p.name)) return { conflict: true };
+    const row = { id: randomUUID(), user_id: userId, active: true, ...p };
+    this.products.push(row);
+    return row;
+  }
+
+  async updateProduct(userId, id, patch) {
+    const p = this.products.find((x) => x.id === id && x.user_id === userId && x.active);
+    if (!p) return null;
+    Object.assign(p, patch);
+    return p;
+  }
+
+  async deleteProduct(userId, id) {
+    const p = this.products.find((x) => x.id === id && x.user_id === userId && x.active);
+    if (!p) return false;
+    p.active = false;
+    return true;
+  }
 }
 
 function aggregate(rows) {
-  const out = { ingresos_usd: 0, egresos_usd: 0, neto_usd: 0, pendiente_por_cobrar_usd: 0, count: rows.length, by_category: {} };
+  const out = { ingresos_usd: 0, egresos_usd: 0, neto_usd: 0, pendiente_por_cobrar_usd: 0, count: rows.length, by_category: {}, income_by_category: {}, expense_by_category: {} };
   for (const t of rows) {
     const usd = Number(t.amount_usd);
     if (t.status === 'pendiente') {
@@ -91,6 +157,8 @@ function aggregate(rows) {
     }
     if (t.type === 'ingreso') out.ingresos_usd += usd;
     else out.egresos_usd += usd;
+    const bucket = t.type === 'ingreso' ? out.income_by_category : out.expense_by_category;
+    bucket[t.category_slug] = Math.round(((bucket[t.category_slug] ?? 0) + usd) * 100) / 100;
     out.by_category[t.category_slug] = (out.by_category[t.category_slug] ?? 0) + (t.type === 'ingreso' ? usd : -usd);
   }
   out.neto_usd = out.ingresos_usd - out.egresos_usd;
@@ -213,6 +281,112 @@ export class PgRepository {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [q.user_id, q.product_name, q.cost_usd, q.margin_pct, q.fee_pct, q.fx_buffer_pct, q.rate_used, q.price_usd, q.price_ves],
     );
+  }
+
+  // ── Web app ──
+  async getPrimaryUser(phone = null) {
+    const { rows } = await this.pool.query(
+      `SELECT u.id, u.whatsapp_phone, u.display_name, u.business_name, u.default_margin_pct::float, u.fx_buffer_pct::float
+       FROM users u WHERE ($1::text IS NULL OR u.whatsapp_phone = $1)
+       ORDER BY (SELECT max(t.occurred_at) FROM transactions t WHERE t.user_id = u.id) DESC NULLS LAST, u.created_at
+       LIMIT 1`,
+      [phone],
+    );
+    return rows[0] ?? null;
+  }
+
+  async listTransactions(userId, f = {}) {
+    const where = ['user_id = $1', 'deleted_at IS NULL'];
+    const params = [userId];
+    const add = (sql, v) => { params.push(v); where.push(sql.replace('?', `$${params.length}`)); };
+    if (f.from) add('occurred_at >= ?', f.from);
+    if (f.to) add('occurred_at < ?', f.to);
+    if (f.type) add('type = ?', f.type);
+    if (f.status) add('status = ?', f.status);
+    if (f.category) add('category_slug = ?', f.category);
+    if (f.q) add("(coalesce(description,'') || ' ' || coalesce(counterparty,'')) ILIKE ?", `%${f.q}%`);
+    params.push(f.limit ?? 50, f.offset ?? 0);
+    const { rows } = await this.pool.query(
+      `SELECT id, type, status, amount::float, currency, settlement_currency, payment_method, rate_used::float,
+              amount_usd::float, amount_ves::float, category_slug, description, counterparty, channel, occurred_at,
+              ai_confidence::float, count(*) OVER()::int AS total
+       FROM transactions WHERE ${where.join(' AND ')}
+       ORDER BY occurred_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
+    );
+    return { total: rows[0]?.total ?? 0, rows: rows.map(({ total, ...r }) => r) };
+  }
+
+  async softDeleteTransaction(userId, id) {
+    const { rowCount } = await this.pool.query(
+      'UPDATE transactions SET deleted_at = now() WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
+      [id, userId],
+    );
+    return rowCount > 0;
+  }
+
+  async dailySeries(userId, since) {
+    const { rows } = await this.pool.query(
+      `SELECT (occurred_at AT TIME ZONE 'America/Caracas')::date::text AS day,
+              coalesce(sum(amount_usd) FILTER (WHERE type = 'ingreso'), 0)::float AS ingresos_usd,
+              coalesce(sum(amount_usd) FILTER (WHERE type = 'egreso'), 0)::float AS egresos_usd
+       FROM transactions
+       WHERE user_id = $1 AND occurred_at >= $2 AND deleted_at IS NULL AND status = 'confirmada'
+       GROUP BY 1 ORDER BY 1`,
+      [userId, since],
+    );
+    return rows;
+  }
+
+  static PRODUCT_COLS = `id, name, sku, unit, replacement_cost::float, cost_currency, margin_pct::float,
+                         stock_qty::float, min_stock_qty::float, active`;
+
+  async listProducts(userId) {
+    const { rows } = await this.pool.query(
+      `SELECT ${PgRepository.PRODUCT_COLS} FROM products WHERE user_id = $1 AND active ORDER BY name`,
+      [userId],
+    );
+    return rows;
+  }
+
+  async createProduct(userId, p) {
+    try {
+      const { rows } = await this.pool.query(
+        `INSERT INTO products (user_id, name, sku, unit, replacement_cost, cost_currency, margin_pct, stock_qty, min_stock_qty)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING ${PgRepository.PRODUCT_COLS}`,
+        [userId, p.name, p.sku ?? null, p.unit, p.replacement_cost, p.cost_currency, p.margin_pct ?? null, p.stock_qty, p.min_stock_qty],
+      );
+      return rows[0];
+    } catch (err) {
+      if (err.code === '23505') return { conflict: true };
+      throw err;
+    }
+  }
+
+  async updateProduct(userId, id, patch) {
+    const allowed = ['name', 'sku', 'unit', 'replacement_cost', 'cost_currency', 'margin_pct', 'stock_qty', 'min_stock_qty'];
+    const keys = Object.keys(patch).filter((k) => allowed.includes(k));
+    if (!keys.length) return (await this.listProducts(userId)).find((p) => p.id === id) ?? null;
+    const sets = keys.map((k, i) => `${k} = $${i + 3}`);
+    try {
+      const { rows } = await this.pool.query(
+        `UPDATE products SET ${sets.join(', ')}, updated_at = now() WHERE id = $1 AND user_id = $2 AND active
+         RETURNING ${PgRepository.PRODUCT_COLS}`,
+        [id, userId, ...keys.map((k) => patch[k])],
+      );
+      return rows[0] ?? null;
+    } catch (err) {
+      if (err.code === '23505') return { conflict: true };
+      throw err;
+    }
+  }
+
+  async deleteProduct(userId, id) {
+    const { rowCount } = await this.pool.query(
+      'UPDATE products SET active = false, updated_at = now() WHERE id = $1 AND user_id = $2 AND active',
+      [id, userId],
+    );
+    return rowCount > 0;
   }
 }
 
