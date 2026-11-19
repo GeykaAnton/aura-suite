@@ -19,4 +19,7 @@ export function middleware(request) {
   });
 }
 
-export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'] };
+export const config = {
+  // No bloquear archivos públicos de PWA para que Chrome/Android puedan instalar la app
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|manifest\\.webmanifest|sw\\.js|icons/).*)'],
+};
