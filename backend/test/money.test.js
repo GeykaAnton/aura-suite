@@ -33,3 +33,10 @@ test('costo en bolívares se normaliza a USD', () => {
 test('rechaza márgenes imposibles', () => {
   assert.throws(() => calcShieldedPrice({ replacementCost: 10, marginPct: 100 }, rates));
 });
+
+test('precio de servicio: suma materiales + mano de obra antes del margen', () => {
+  const p = calcShieldedPrice({ replacementCost: 3, laborUsd: 11, marginPct: 30 }, rates);
+  assert.equal(p.cost_usd, 3);
+  assert.equal(p.labor_usd, 11);
+  assert.equal(p.price_usd, 20); // (3 + 11) / 0.7 = 20
+});

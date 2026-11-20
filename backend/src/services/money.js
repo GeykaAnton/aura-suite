@@ -74,29 +74,33 @@ export function withEquivalents(amount, currency, rates) {
  * @param {RateTable} rates
  */
 export function calcShieldedPrice(
-  { replacementCost, costCurrency = 'USD', marginPct, feePct = 0, fxBufferPct = 0, roundVesTo = 1 },
+  { replacementCost, costCurrency = 'USD', laborUsd = 0, marginPct, feePct = 0, fxBufferPct = 0, roundVesTo = 1 },
   rates,
 ) {
   const margin = D(marginPct).div(100);
   const fee = D(feePct).div(100);
   const buffer = D(fxBufferPct).div(100);
+  const labor = D(laborUsd || 0);
 
   if (D(replacementCost).lte(0)) throw new Error('El costo de reposición debe ser mayor que 0');
+  if (labor.lt(0)) throw new Error('La mano de obra no puede ser negativa');
   if (margin.lt(0) || margin.gte(0.95)) throw new Error('El margen debe estar entre 0% y 95%');
   if (fee.lt(0) || fee.gte(0.5)) throw new Error('La comisión debe estar entre 0% y 50%');
 
   const costUsd = convert(replacementCost, costCurrency, 'USD', rates);
-  const priceBeforeFee = costUsd.div(D(1).minus(margin));
+  const baseUsd = costUsd.plus(labor);
+  const priceBeforeFee = baseUsd.div(D(1).minus(margin));
   const priceUsd = priceBeforeFee.div(D(1).minus(fee)).toDecimalPlaces(2, Decimal.ROUND_UP);
 
   const rawVes = priceUsd.mul(rates.USD).mul(D(1).plus(buffer));
   const step = D(roundVesTo || 1);
   const priceVes = rawVes.div(step).toDecimalPlaces(0, Decimal.ROUND_UP).mul(step);
 
-  const profitUsd = priceUsd.mul(D(1).minus(fee)).minus(costUsd);
+  const profitUsd = priceUsd.mul(D(1).minus(fee)).minus(baseUsd);
 
   return {
     cost_usd: costUsd.toDecimalPlaces(2).toNumber(),
+    labor_usd: labor.toDecimalPlaces(2).toNumber(),
     margin_pct: Number(marginPct),
     fee_pct: Number(feePct),
     fx_buffer_pct: Number(fxBufferPct),

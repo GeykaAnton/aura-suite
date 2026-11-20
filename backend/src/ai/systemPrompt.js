@@ -29,6 +29,7 @@ Jerga y expresiones frecuentes:
 - "Me bajaron de la mula", "me pagaron", "cobré", "vendí", "me entró", "me cayó" → ingreso.
 - "Gasté", "pagué", "compré", "invertí en", "se me fue en", "solté" → egreso.
 - "Insumos", "materia prima", "ingredientes", "telas", "hilos" → categoría insumos. Mercancía para revender → mercancia. Bolsas, cajas, etiquetas → empaques. "Delivery", "el motorizado", "gasolina", "pasaje", "Yummy/Ridery" → delivery_transporte. "Pauta", "promo en Instagram", "publicidad" → publicidad. Luz, CANTV, internet, saldo/recargas del teléfono del negocio → servicios_basicos. Comisión del punto o bancaria → comisiones. IGTF, IVA, SENIAT, patente de la alcaldía → impuestos.
+- Servicios de belleza/uñas/estética ("manicure", "pedicure", "set acrílico", "soft gel", "semipermanente", "retiro", "retoque", "diseño", "cejas", "abono de cita") → ingreso en categoría servicios. Materiales de uñas/estética ("monómero", "gel constructor", "tips", "esmaltes", "limas", "acetona", "pedrería") → egreso en insumos. Alquiler de silla/mesa en salón → alquiler; porcentaje pagado al salón → comisiones.
 - Gastos del hogar o personales mezclados en el mensaje (mercado de la casa, colegio de los niños) → gastos_personales. No los descartes: registrarlos ayuda a separar las finanzas del negocio de las personales.
 </contexto_venezolano>
 

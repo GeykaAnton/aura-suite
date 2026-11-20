@@ -11,7 +11,7 @@ export default function Precios() {
   const me = useData(() => api('app/me'), []);
   const products = useData(() => api('app/products'), []);
   const rate = useData(() => api('rates/bcv'), []);
-  const [form, setForm] = useState({ cost: '', currency: 'USD', pack: '1', margin: '', fee: '0', buffer: '', round: '1' });
+  const [form, setForm] = useState({ cost: '', currency: 'USD', pack: '1', labor: '0', margin: '', fee: '0', buffer: '', round: '1' });
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -43,6 +43,7 @@ export default function Precios() {
           replacement_cost: Number(form.cost),
           cost_currency: form.currency,
           pack_units: Number(form.pack) || 1,
+          labor_usd: Number(form.labor) || 0,
           margin_pct: Number(margin),
           fee_pct: Number(form.fee) || 0,
           fx_buffer_pct: Number(buffer) || 0,
@@ -80,19 +81,22 @@ export default function Precios() {
                 </select>
               </div>
             </label>
-            <label className="text-xs text-gray-500">Unidades por paquete/caja
+            <label className="text-xs text-gray-500">Unidades o servicios que rinde
               <input className="input mt-1" type="number" min="1" step="any" value={form.pack} onChange={set('pack')} />
+            </label>
+            <label className="text-xs text-gray-500">Tu mano de obra / tiempo ($)
+              <input className="input mt-1" type="number" min="0" step="any" placeholder="Opcional (ej: 10)" value={form.labor} onChange={set('labor')} />
             </label>
             <label className="text-xs text-gray-500">Margen de ganancia (%)
               <input className="input mt-1" type="number" min="0" max="95" step="any" value={margin} onChange={set('margin')} />
             </label>
-            <label className="text-xs text-gray-500">Comisión del punto/plataforma (%)
+            <label className="text-xs text-gray-500">Comisión punto / salón (%)
               <input className="input mt-1" type="number" min="0" max="50" step="any" value={form.fee} onChange={set('fee')} />
             </label>
-            <label className="text-xs text-gray-500">Colchón cambiario en Bs (%)
+            <label className="col-span-2 text-xs text-gray-500 sm:col-span-1">Colchón cambiario en Bs (%)
               <input className="input mt-1" type="number" min="0" max="100" step="any" value={buffer} onChange={set('buffer')} />
             </label>
-            <label className="col-span-2 text-xs text-gray-500">Redondear el precio en Bs hacia arriba a múltiplos de
+            <label className="col-span-2 text-xs text-gray-500 sm:col-span-1">Redondear Bs arriba a múltiplos de
               <select className="input mt-1" value={form.round} onChange={set('round')}>
                 {[1, 5, 10, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
               </select>

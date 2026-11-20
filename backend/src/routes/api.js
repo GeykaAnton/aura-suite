@@ -10,6 +10,7 @@ const PriceBody = z.object({
   replacement_cost: z.number().positive(),
   cost_currency: z.enum(CURRENCIES).default('USD'),
   pack_units: z.number().positive().default(1),
+  labor_usd: z.number().min(0).default(0),
   margin_pct: z.number().min(0).max(95).default(30),
   fee_pct: z.number().min(0).max(50).default(0),
   fx_buffer_pct: z.number().min(0).max(100).default(0),
@@ -35,6 +36,7 @@ export default async function apiRoutes(app, { repo }) {
       {
         replacementCost: b.replacement_cost / b.pack_units,
         costCurrency: b.cost_currency,
+        laborUsd: b.labor_usd,
         marginPct: b.margin_pct,
         feePct: b.fee_pct,
         fxBufferPct: b.fx_buffer_pct,

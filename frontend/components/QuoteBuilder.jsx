@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usd, ves } from '@/lib/format';
 import WhatsappShareCard from './WhatsappShareCard';
 
@@ -9,7 +9,18 @@ export default function QuoteBuilder({ lastCalculation, rate, businessName }) {
   const [qty, setQty] = useState('1');
   const [unitUsd, setUnitUsd] = useState('');
   const [note, setNote] = useState('Precios válidos por hoy a tasa BCV.');
+  const [pagoMovil, setPagoMovil] = useState('');
+  const [includePm, setIncludePm] = useState(true);
   const [items, setItems] = useState([]);
+
+  useEffect(() => {
+    try { setPagoMovil(localStorage.getItem('aura_pago_movil') ?? ''); } catch {}
+  }, []);
+
+  function savePagoMovil(v) {
+    setPagoMovil(v);
+    try { localStorage.setItem('aura_pago_movil', v); } catch {}
+  }
 
   const activePriceUsd = unitUsd !== '' ? Number(unitUsd) : lastCalculation?.price_usd ?? 0;
   const activeRate = rate ?? lastCalculation?.rate_used ?? 0;
@@ -48,6 +59,7 @@ export default function QuoteBuilder({ lastCalculation, rate, businessName }) {
     ...(lines.length ? lines : ['• (Calcula o agrega un producto para generar tu cotización)']),
     '',
     `💰 *Total:* ${usd(totalUsd)}${totalVes ? ` / ${ves(totalVes)}` : ''}`,
+    includePm && pagoMovil.trim() ? `📲 *Para apartar cita / Pago Móvil:* ${pagoMovil.trim()}` : null,
     note.trim() ? `📌 _${note.trim()}_` : null,
   ]
     .filter((x) => x !== null)
@@ -82,6 +94,13 @@ export default function QuoteBuilder({ lastCalculation, rate, businessName }) {
         </label>
         <label className="col-span-2 text-xs text-gray-500">Nota al pie
           <input className="input mt-1" value={note} onChange={(e) => setNote(e.target.value)} />
+        </label>
+        <label className="col-span-2 text-xs text-gray-500 sm:col-span-3">Datos de Pago Móvil (se guardan en tu teléfono)
+          <input className="input mt-1" placeholder="Ej: 0412-1234567 · V-12345678 · Banesco (0134)" value={pagoMovil} onChange={(e) => savePagoMovil(e.target.value)} />
+        </label>
+        <label className="col-span-2 flex items-end gap-2 pb-2 text-xs text-gray-600 sm:col-span-1">
+          <input type="checkbox" checked={includePm} onChange={(e) => setIncludePm(e.target.checked)} className="h-4 w-4 accent-aura-600" />
+          <span>Incluir en mensaje</span>
         </label>
         <div className="col-span-2 flex items-center gap-2 sm:col-span-4">
           <button type="submit" className="btn-ghost" disabled={!productName.trim() || activePriceUsd <= 0}>
