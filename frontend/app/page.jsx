@@ -114,7 +114,7 @@ export default function Dashboard() {
                   <XAxis type="number" fontSize={11} />
                   <YAxis type="category" dataKey="name" fontSize={11} width={110} />
                   <Tooltip formatter={(v) => usd(v)} />
-                  <Bar dataKey="value" name="Gasto" fill="#ec4899" radius={[0, 6, 6, 0]} />
+                  <Bar dataKey="value" name="Gasto" fill="#8b5cf6" radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

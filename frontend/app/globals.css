@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 @theme {
-  --color-aura-50: #fdf2f8;
-  --color-aura-100: #fce7f3;
-  --color-aura-500: #ec4899;
-  --color-aura-600: #db2777;
-  --color-aura-700: #be185d;
+  --color-aura-50: #f5f3ff;
+  --color-aura-100: #ede9fe;
+  --color-aura-500: #8b5cf6;
+  --color-aura-600: #7c3aed;
+  --color-aura-700: #5b21b6;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 body {
-  background: #faf7f5;
+  background: #faf8fc;
   color: #1f2937;
 }
 

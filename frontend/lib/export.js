@@ -61,7 +61,7 @@ export async function exportPdf(rows, summary, range, businessName) {
       `${nf.format(t.amount)} ${t.currency}`, nf.format(t.amount_usd), nf.format(t.amount_ves),
     ]),
     styles: { fontSize: 8 },
-    headStyles: { fillColor: [219, 39, 119] },
+    headStyles: { fillColor: [124, 58, 237] },
     columnStyles: { 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' } },
   });
 
