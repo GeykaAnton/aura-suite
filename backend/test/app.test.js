@@ -109,3 +109,19 @@ test('multiusuaria: cada usuaria ve solo sus datos con su sesión', async () => 
   // Token inválido → 401
   assert.equal((await app.inject({ method: 'GET', url: '/api/app/me', headers: { ...H, authorization: 'Bearer invalido' } })).statusCode, 401);
 });
+
+test('login con número + PIN: crear PIN y validar PIN incorrecto', async () => {
+  const s1 = (await app.inject({ method: 'POST', url: '/api/auth/pin-status', headers: H, payload: { phone: '0412-5551234' } })).json();
+  assert.equal(s1.phone, '584125551234');
+  assert.equal(s1.hasPin, false);
+
+  const crear = await app.inject({ method: 'POST', url: '/api/auth/login-pin', headers: H, payload: { phone: '04125551234', pin: '2468' } });
+  assert.equal(crear.statusCode, 200);
+  assert.ok(crear.json().token);
+
+  const s2 = (await app.inject({ method: 'POST', url: '/api/auth/pin-status', headers: H, payload: { phone: '584125551234' } })).json();
+  assert.equal(s2.hasPin, true);
+
+  assert.equal((await app.inject({ method: 'POST', url: '/api/auth/login-pin', headers: H, payload: { phone: '04125551234', pin: '0000' } })).statusCode, 401);
+  assert.equal((await app.inject({ method: 'POST', url: '/api/auth/login-pin', headers: H, payload: { phone: '04125551234', pin: '2468' } })).statusCode, 200);
+});

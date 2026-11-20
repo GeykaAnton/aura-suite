@@ -1,5 +1,5 @@
-// Autenticación sin contraseña: OTP de 6 dígitos por WhatsApp + tokens de sesión HMAC-SHA256.
-import { createHash, createHmac, randomInt, timingSafeEqual } from 'node:crypto';
+// Autenticación sin contraseña: OTP de 6 dígitos por WhatsApp o PIN personal + tokens HMAC-SHA256.
+import { createHash, createHmac, randomBytes, randomInt, scryptSync, timingSafeEqual } from 'node:crypto';
 import { config } from '../config.js';
 
 const secret = () => config.dashboard.token || 'dev-secret';
@@ -25,6 +25,20 @@ export function generateOtp() {
 
 export function hashOtp(phone, code) {
   return createHash('sha256').update(`${phone}:${code}:${secret()}`).digest('hex');
+}
+
+export function hashPin(pin) {
+  const salt = randomBytes(16).toString('hex');
+  const derived = scryptSync(String(pin), salt, 32).toString('hex');
+  return `${salt}:${derived}`;
+}
+
+export function verifyPin(pin, stored) {
+  if (!stored || !stored.includes(':')) return false;
+  const [salt, hashHex] = stored.split(':');
+  const expected = Buffer.from(hashHex, 'hex');
+  const got = scryptSync(String(pin), salt, 32);
+  return got.length === expected.length && timingSafeEqual(got, expected);
 }
 
 export function signSessionToken(user, ttlDays = 30) {

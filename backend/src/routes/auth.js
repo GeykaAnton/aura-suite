@@ -3,7 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { sendText } from '../services/whatsapp.js';
-import { generateOtp, hashOtp, normalizePhone, signSessionToken } from '../services/auth.js';
+import { generateOtp, hashOtp, hashPin, normalizePhone, signSessionToken, verifyPin } from '../services/auth.js';
 
 /** @param {import('fastify').FastifyInstance} app */
 export default async function authRoutes(app, { repo }) {
@@ -47,6 +47,39 @@ export default async function authRoutes(app, { repo }) {
     if (!ok) return reply.code(401).send({ error: 'Código incorrecto o vencido. Pide uno nuevo.' });
 
     const user = await repo.findOrCreateUser(phone);
+    const token = signSessionToken(user);
+    return {
+      token,
+      user: {
+        id: user.id,
+        phone: user.whatsapp_phone,
+        display_name: user.display_name,
+        business_name: user.business_name,
+      },
+    };
+  });
+
+  app.post('/api/auth/pin-status', async (req, reply) => {
+    const phone = normalizePhone(req.body?.phone);
+    if (!phone) return reply.code(400).send({ error: 'Escribe un número de WhatsApp válido (ej: 0412 1877195).' });
+    const user = await repo.findUserByPhone(phone);
+    return { phone, hasPin: Boolean(user?.pin_hash) };
+  });
+
+  app.post('/api/auth/login-pin', async (req, reply) => {
+    const phone = normalizePhone(req.body?.phone);
+    const pin = String(req.body?.pin ?? '').trim();
+    if (!phone || !/^\d{4,8}$/.test(pin)) {
+      return reply.code(400).send({ error: 'Ingresa tu número y un PIN de 4 a 8 dígitos.' });
+    }
+
+    const user = await repo.findOrCreateUser(phone);
+    if (!user.pin_hash) {
+      await repo.setUserPin(user.id, hashPin(pin));
+    } else if (!verifyPin(pin, user.pin_hash)) {
+      return reply.code(401).send({ error: 'PIN incorrecto. Intenta de nuevo.' });
+    }
+
     const token = signSessionToken(user);
     return {
       token,

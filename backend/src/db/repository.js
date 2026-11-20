@@ -89,6 +89,15 @@ export class MemoryRepository {
     return [...this.users.values()].find((u) => u.id === id) ?? null;
   }
 
+  async findUserByPhone(phone) {
+    return this.users.get(phone) ?? null;
+  }
+
+  async setUserPin(id, pinHash) {
+    const u = await this.findUserById(id);
+    if (u) u.pin_hash = pinHash;
+  }
+
   async updateUserProfile(id, patch) {
     const u = await this.findUserById(id);
     if (!u) return null;
@@ -338,11 +347,24 @@ export class PgRepository {
   // ── Web app ──
   async findUserById(id) {
     const { rows } = await this.pool.query(
-      `SELECT id, whatsapp_phone, display_name, business_name, default_margin_pct::float, fx_buffer_pct::float
+      `SELECT id, whatsapp_phone, display_name, business_name, default_margin_pct::float, fx_buffer_pct::float, pin_hash
        FROM users WHERE id = $1`,
       [id],
     );
     return rows[0] ?? null;
+  }
+
+  async findUserByPhone(phone) {
+    const { rows } = await this.pool.query(
+      `SELECT id, whatsapp_phone, display_name, business_name, default_margin_pct::float, fx_buffer_pct::float, pin_hash
+       FROM users WHERE whatsapp_phone = $1`,
+      [phone],
+    );
+    return rows[0] ?? null;
+  }
+
+  async setUserPin(id, pinHash) {
+    await this.pool.query('UPDATE users SET pin_hash = $2, updated_at = now() WHERE id = $1', [id, pinHash]);
   }
 
   async updateUserProfile(id, patch) {

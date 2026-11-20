@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS users (
   default_margin_pct NUMERIC(5,2) NOT NULL DEFAULT 30.00,   -- margen sobre precio de venta
   fx_buffer_pct      NUMERIC(5,2) NOT NULL DEFAULT 0.00,    -- colchón cambiario para precios en Bs
   plan               TEXT NOT NULL DEFAULT 'gratis',
+  pin_hash           TEXT,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -159,6 +160,8 @@ DO $$ BEGIN
   ALTER TABLE transactions
     ADD CONSTRAINT fk_tx_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL;
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_hash TEXT;
 
 -- ── Historial de cálculos de precio ("precio blindado") ─────────────────
 CREATE TABLE IF NOT EXISTS price_quotes (
