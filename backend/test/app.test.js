@@ -83,3 +83,29 @@ test('metas de ahorro: crear, abonar, borrar', async () => {
   assert.equal((await app.inject({ method: 'DELETE', url: `/api/app/goals/${id}`, headers: H })).statusCode, 204);
   assert.equal((await app.inject({ method: 'GET', url: '/api/app/goals', headers: H })).json().length, 0);
 });
+
+test('multiusuaria: cada usuaria ve solo sus datos con su sesión', async () => {
+  const { signSessionToken } = await import('../src/services/auth.js');
+  const amiga = await repo.findOrCreateUser('584149999999', 'Amiga');
+  const tokenAmiga = signSessionToken(amiga);
+
+  // La amiga aún no tiene transacciones (aunque la usuaria 1 sí tiene)
+  const resAmiga = await app.inject({
+    method: 'GET', url: '/api/app/summary?period=mes',
+    headers: { ...H, authorization: `Bearer ${tokenAmiga}` },
+  });
+  assert.equal(resAmiga.statusCode, 200);
+  assert.equal(resAmiga.json().summary.count, 0);
+
+  // La amiga puede crear su propia meta sin mezclarla
+  await app.inject({
+    method: 'POST', url: '/api/app/goals',
+    headers: { ...H, authorization: `Bearer ${tokenAmiga}` },
+    payload: { name: 'Meta de amiga', target_amount: 100 },
+  });
+  assert.equal((await app.inject({ method: 'GET', url: '/api/app/goals', headers: H })).json().length, 0);
+  assert.equal((await app.inject({ method: 'GET', url: '/api/app/goals', headers: { ...H, authorization: `Bearer ${tokenAmiga}` } })).json().length, 1);
+
+  // Token inválido → 401
+  assert.equal((await app.inject({ method: 'GET', url: '/api/app/me', headers: { ...H, authorization: 'Bearer invalido' } })).statusCode, 401);
+});

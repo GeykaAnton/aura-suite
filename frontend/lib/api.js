@@ -9,6 +9,10 @@ export async function api(path, { method = 'GET', body, params } = {}) {
     body: body ? JSON.stringify(body) : undefined,
     cache: 'no-store',
   });
+  if (res.status === 401 && typeof window !== 'undefined') {
+    window.location.href = '/login';
+    throw new Error('Sesión expirada');
+  }
   if (res.status === 204) return null;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

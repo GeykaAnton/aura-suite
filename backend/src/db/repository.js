@@ -83,6 +83,33 @@ export class MemoryRepository {
   // ── Web app ──
   products = [];
   goals = [];
+  loginCodes = [];
+
+  async findUserById(id) {
+    return [...this.users.values()].find((u) => u.id === id) ?? null;
+  }
+
+  async updateUserProfile(id, patch) {
+    const u = await this.findUserById(id);
+    if (!u) return null;
+    Object.assign(u, patch);
+    return u;
+  }
+
+  async createLoginCode(phone, codeHash, expiresAt) {
+    this.loginCodes.push({ id: randomUUID(), phone, code_hash: codeHash, expires_at: expiresAt, attempts: 0, used_at: null });
+  }
+
+  async verifyLoginCode(phone, codeHash) {
+    const row = [...this.loginCodes].reverse().find((c) => c.phone === phone && !c.used_at && new Date(c.expires_at) > new Date() && c.attempts < 5);
+    if (!row) return false;
+    if (row.code_hash !== codeHash) {
+      row.attempts += 1;
+      return false;
+    }
+    row.used_at = new Date().toISOString();
+    return true;
+  }
 
   async getPrimaryUser(phone = null) {
     const all = [...this.users.values()].filter((u) => !phone || u.whatsapp_phone === phone);
@@ -309,6 +336,52 @@ export class PgRepository {
   }
 
   // ── Web app ──
+  async findUserById(id) {
+    const { rows } = await this.pool.query(
+      `SELECT id, whatsapp_phone, display_name, business_name, default_margin_pct::float, fx_buffer_pct::float
+       FROM users WHERE id = $1`,
+      [id],
+    );
+    return rows[0] ?? null;
+  }
+
+  async updateUserProfile(id, patch) {
+    const allowed = ['display_name', 'business_name', 'default_margin_pct', 'fx_buffer_pct'];
+    const keys = Object.keys(patch).filter((k) => allowed.includes(k));
+    if (!keys.length) return this.findUserById(id);
+    const sets = keys.map((k, i) => `${k} = $${i + 2}`);
+    const { rows } = await this.pool.query(
+      `UPDATE users SET ${sets.join(', ')}, updated_at = now() WHERE id = $1
+       RETURNING id, whatsapp_phone, display_name, business_name, default_margin_pct::float, fx_buffer_pct::float`,
+      [id, ...keys.map((k) => patch[k])],
+    );
+    return rows[0] ?? null;
+  }
+
+  async createLoginCode(phone, codeHash, expiresAt) {
+    await this.pool.query(
+      'INSERT INTO login_codes (phone, code_hash, expires_at) VALUES ($1, $2, $3)',
+      [phone, codeHash, expiresAt],
+    );
+  }
+
+  async verifyLoginCode(phone, codeHash) {
+    const { rows } = await this.pool.query(
+      `SELECT id, code_hash FROM login_codes
+       WHERE phone = $1 AND used_at IS NULL AND expires_at > now() AND attempts < 5
+       ORDER BY created_at DESC LIMIT 1`,
+      [phone],
+    );
+    const row = rows[0];
+    if (!row) return false;
+    if (row.code_hash !== codeHash) {
+      await this.pool.query('UPDATE login_codes SET attempts = attempts + 1 WHERE id = $1', [row.id]);
+      return false;
+    }
+    await this.pool.query('UPDATE login_codes SET used_at = now() WHERE id = $1', [row.id]);
+    return true;
+  }
+
   async getPrimaryUser(phone = null) {
     const { rows } = await this.pool.query(
       `SELECT u.id, u.whatsapp_phone, u.display_name, u.business_name, u.default_margin_pct::float, u.fx_buffer_pct::float

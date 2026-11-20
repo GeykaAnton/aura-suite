@@ -5,6 +5,7 @@ import whatsappWebhook from './routes/whatsappWebhook.js';
 import devRoutes from './routes/dev.js';
 import apiRoutes from './routes/api.js';
 import appRoutes from './routes/app.js';
+import authRoutes from './routes/auth.js';
 
 /** @param {{ repo: import('./db/repository.js').Repository, logger?: any }} opts */
 export async function buildApp({ repo, logger = { level: config.logLevel } }) {
@@ -24,7 +25,10 @@ export async function buildApp({ repo, logger = { level: config.logLevel } }) {
 
   await app.register(apiRoutes, { repo });
   await app.register(whatsappWebhook, { repo });
-  if (config.dashboard.token) await app.register(appRoutes, { repo });
+  if (config.dashboard.token) {
+    await app.register(authRoutes, { repo });
+    await app.register(appRoutes, { repo });
+  }
   if (config.enableDevRoutes) await app.register(devRoutes, { repo });
 
   return app;

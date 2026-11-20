@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 const LINKS = [
   { href: '/', label: 'Resumen', short: 'Inicio', icon: '📊', bottom: true },
@@ -14,8 +14,17 @@ const LINKS = [
 
 export default function Nav() {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  if (pathname === '/login') return null;
   const isActive = (href) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
+
+  async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setOpen(false);
+    router.replace('/login');
+    router.refresh();
+  }
 
   return (
     <>
@@ -38,6 +47,9 @@ export default function Nav() {
                 {item.label}
               </Link>
             ))}
+            <button type="button" onClick={logout} className="ml-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-500 hover:bg-stone-100 hover:text-gray-800">
+              Salir
+            </button>
           </nav>
 
           {/* Botón menú en teléfono */}
@@ -71,6 +83,12 @@ export default function Nav() {
                   </Link>
                 </li>
               ))}
+              <li className="border-t border-gray-100 pt-1">
+                <button type="button" onClick={logout} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-rose-600 hover:bg-rose-50">
+                  <span>🚪</span>
+                  <span>Cerrar sesión</span>
+                </button>
+              </li>
             </ul>
           </nav>
         )}

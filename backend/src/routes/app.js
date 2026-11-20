@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { config } from '../config.js';
 import { getTodayBcvRate } from '../services/bcvRate.js';
 import { calcHealthScore } from '../services/healthScore.js';
+import { verifySessionToken } from '../services/auth.js';
 import { CURRENCIES, CATEGORIES, PAYMENT_METHODS } from '../ai/schema.js';
 import { periodStart, todayInTz } from '../utils/dates.js';
 
@@ -57,9 +58,18 @@ export default async function appRoutes(app, { repo }) {
     }
   });
 
-  // Usuaria única del panel
+  // Usuaria de la sesión (si viene Bearer token) o usuaria única (fallback admin/tests)
   app.decorateRequest('dashUser', null);
   app.addHook('preHandler', async (req, reply) => {
+    const auth = req.headers.authorization;
+    if (auth?.startsWith('Bearer ')) {
+      const payload = verifySessionToken(auth.slice(7));
+      if (!payload) return reply.code(401).send({ error: 'Sesión vencida o inválida. Inicia sesión de nuevo.' });
+      const user = await repo.findUserById(payload.sub);
+      if (!user) return reply.code(401).send({ error: 'Usuaria no encontrada.' });
+      req.dashUser = user;
+      return;
+    }
     const user = await repo.getPrimaryUser(config.dashboard.userPhone);
     if (!user) return reply.code(404).send({ error: 'Aún no hay usuarias: escribe primero al bot de WhatsApp' });
     req.dashUser = user;
@@ -71,6 +81,21 @@ export default async function appRoutes(app, { repo }) {
       display_name: u.display_name, business_name: u.business_name, phone: u.whatsapp_phone,
       default_margin_pct: u.default_margin_pct, fx_buffer_pct: u.fx_buffer_pct,
       timezone: config.timezone, today: todayInTz(config.timezone),
+    };
+  });
+
+  app.patch('/api/app/me', async (req, reply) => {
+    const b = z.object({
+      display_name: z.string().trim().max(80).nullable().optional(),
+      business_name: z.string().trim().max(100).nullable().optional(),
+      default_margin_pct: z.number().min(0).max(95).optional(),
+      fx_buffer_pct: z.number().min(0).max(100).optional(),
+    }).safeParse(req.body);
+    if (!b.success) return reply.code(400).send({ error: b.error.flatten() });
+    const u = await repo.updateUserProfile(req.dashUser.id, b.data);
+    return {
+      display_name: u.display_name, business_name: u.business_name, phone: u.whatsapp_phone,
+      default_margin_pct: u.default_margin_pct, fx_buffer_pct: u.fx_buffer_pct,
     };
   });
 

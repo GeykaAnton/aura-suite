@@ -1,5 +1,4 @@
-// Proxy hacia el backend. Agrega el token en el servidor para que el navegador nunca lo vea.
-// Solo reenvía rutas permitidas (lista blanca).
+// Proxy hacia el backend. Adjunta la sesión de la usuaria (cookie HttpOnly) y el token de servidor.
 const ALLOWED = [/^app\//, /^rates\/bcv$/, /^pricing\/calculate$/];
 
 async function forward(request, { params }) {
@@ -15,6 +14,11 @@ async function forward(request, { params }) {
     return Response.json({ error: 'Faltan BACKEND_URL o DASHBOARD_TOKEN en el servidor del frontend' }, { status: 500 });
   }
 
+  const session = request.cookies.get('aura_session')?.value;
+  if (joined.startsWith('app/') && !session) {
+    return Response.json({ error: 'Inicia sesión para continuar.' }, { status: 401 });
+  }
+
   const url = new URL(request.url);
   const target = `${base.replace(/\/$/, '')}/api/${joined}${url.search}`;
   const hasBody = !['GET', 'HEAD', 'DELETE'].includes(request.method);
@@ -22,7 +26,11 @@ async function forward(request, { params }) {
   try {
     const res = await fetch(target, {
       method: request.method,
-      headers: { 'x-dashboard-token': token, ...(hasBody ? { 'content-type': 'application/json' } : {}) },
+      headers: {
+        'x-dashboard-token': token,
+        ...(session ? { authorization: `Bearer ${session}` } : {}),
+        ...(hasBody ? { 'content-type': 'application/json' } : {}),
+      },
       body: hasBody ? await request.text() : undefined,
       cache: 'no-store',
       signal: AbortSignal.timeout(25000),

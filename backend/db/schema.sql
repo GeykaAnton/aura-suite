@@ -188,6 +188,18 @@ CREATE TABLE IF NOT EXISTS savings_goals (
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ── Códigos de inicio de sesión por WhatsApp (OTP) ───────────────────────
+CREATE TABLE IF NOT EXISTS login_codes (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  phone      TEXT NOT NULL,
+  code_hash  TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  attempts   INT NOT NULL DEFAULT 0,
+  used_at    TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_login_codes_phone ON login_codes (phone, created_at DESC);
+
 -- ── Seguridad (Supabase) ────────────────────────────────────────────────
 -- Supabase publica automáticamente las tablas de "public" en su API REST.
 -- Activar RLS SIN políticas = nadie puede leerlas por esa API (anon/authenticated).
@@ -201,6 +213,7 @@ ALTER TABLE transactions     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE price_quotes     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE savings_goals    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE login_codes      ENABLE ROW LEVEL SECURITY;
 
 -- ── Vista: resumen diario en USD (base para la web y el bot) ────────────
 -- security_invoker: la vista respeta el RLS de quien consulta (si no, lo saltaría)
